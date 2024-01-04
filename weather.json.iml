@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="GENERAL_MODULE" version="4">
+  <component name="NewModuleRootManager" inherit-compiler-output="true">
+    <exclude-output />
+    <content url="file://$MODULE_DIR$" />
+    <orderEntry type="sourceFolder" forTests="false" />
+  </component>
+</module>
+
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+void main() {
+  runApp(MyApp());
+}
+
+class WeatherData {
+  final String cityName;
+  final double currentTemp;
+  final double maxTemp;
+  final double minTemp;
+  final String description;
+
+  WeatherData({
+    required this.cityName,
+    required this.currentTemp,
+    required this.maxTemp,
+    required this.minTemp,
+    required this.description,
+  });
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Weather App',
+      theme: ThemeData.light(),
+      darkTheme: ThemeData.dark(),
+      home: WeatherApp(),
+    );
+  }
+}
+
+class WeatherApp extends StatefulWidget {
+  @override
+  _WeatherAppState createState() => _WeatherAppState();
+}
+
+class _WeatherAppState extends State<WeatherApp> {
+  late String _apiKey;
+  late String _unit;
+  late bool _isCelsius;
+  late List<String> _cities;
+  late String _selectedCity;
+  late WeatherData _weatherData;
+
+  @override
+  void initState() {
+    super.initState();
+    _apiKey = 'YOUR_OPENWEATHERMAP_API_KEY';
+    _unit = 'metric'; // 'metric' for Celsius, 'imperial' for Fahrenheit
+    _isCelsius = true;
+    _cities = ['City1', 'City2', 'City3']; // Add your cities here
+    _selectedCity = _cities.first;
+    _weatherData = WeatherData(
+      cityName: '',
+      currentTemp: 0.0,
+      maxTemp: 0.0,
+      minTemp: 0.0,
+      description: '',
+    );
+    _fetchWeather();
+  }
+
+  Future<void> _fetchWeather() async {
+    final response = await http.get(
+      Uri.parse(
+          'https://api.openweathermap.org/data/2.5/weather?q=$_selectedCity&appid=$_apiKey&units=$_unit'),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      setState(() {
+        _weatherData = WeatherData(
+          cityName: data['name'],
+          currentTemp: data['main']['temp'].toDouble(),
+          maxTemp: data['main']['temp_max'].toDouble(),
+          minTemp: data['main']['temp_min'].toDouble(),
+          description: data['weather'][0]['description'],
+        );
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Weather App'),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              '${_weatherData.cityName}',
+              style: TextStyle(fontSize: 24),
+            ),
+            Text(
+              '${_isCelsius ? _weatherData.currentTemp.round() : _convertToFahrenheit(_weatherData.currentTemp).round()} ${_isCelsius ? '°C' : '°F'}',
+              style: TextStyle(fontSize: 36),
+            ),
+            Text('${_weatherData.description}'),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () => _switchTemperatureUnit(),
+              child: Text('Switch to ${_isCelsius ? 'Fahrenheit' : 'Celsius'}'),
+            ),
+            SizedBox(height: 20),
+            DropdownButton<String>(
+              value: _selectedCity,
+              onChanged: (value) {
+                setState(() {
+                  _selectedCity = value!;
+                  _fetchWeather();
+                });
+              },
+              items: _cities.map<DropdownMenuItem<String>>((String city) {
+                return DropdownMenuItem<String>(
+                  value: city,
+                  child: Text(city),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  double _convertToFahrenheit(double celsius) {
+    return (celsius * 9 / 5) + 32;
+  }
+
+  void _switchTemperatureUnit() {
+    setState(() {
+      _isCelsius = !_isCelsius;
+    });
+  }
+}
